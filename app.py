@@ -8,7 +8,6 @@ from pathlib import Path
 THRESHOLD = 0.45
 
 MODEL_PATH = "recovery_rf_model.pkl"
-#PREPROCESS_PATH = "preprocess_pipeline.pkl"
 
 st.set_page_config(page_title="Recovery Readiness", layout="centered")
 st.title("🏃 Recovery Readiness Advisor")
@@ -37,6 +36,20 @@ INTENSITY_OPTS = ["High", "Low", "Medium"]
 ACTIVITY_ENV_OPTS = ["Indoor", "Outdoor"]
 BMI_CAT_OPTS = ["Normal", "Obese", "Overweight", "Underweight"]
 
+# ============================================================
+# Helper: compute BMI category exactly like training
+# bins=[0, 18.5, 25, 30, 100], labels=["Underweight","Normal","Overweight","Obese"]
+# ============================================================
+def compute_bmi_category(bmi_value: float) -> str:
+    if bmi_value < 18.5:
+        return "Underweight"
+    elif bmi_value < 25:
+        return "Normal"
+    elif bmi_value < 30:
+        return "Overweight"
+    else:
+        return "Obese"
+
 # =========================
 # Sidebar inputs
 # =========================
@@ -61,6 +74,11 @@ st.sidebar.subheader("Profile / health inputs")
 age = st.sidebar.slider("age", 10, 90, 18, 1)
 gender = st.sidebar.selectbox("gender", GENDER_OPTS)
 height_cm = st.sidebar.slider("height_cm", 120.0, 210.0, 156.0, 0.5)
+
+# ✅ Add weight + hydration_level so we can compute hydration_per_kg
+weight_kg = st.sidebar.slider("weight_kg", 35.0, 150.0, 55.0, 0.5)
+hydration_level = st.sidebar.slider("hydration_level (liters/day)", 1.0, 4.0, 2.2, 0.1)
+
 bmi = st.sidebar.number_input("bmi", min_value=10.0, max_value=60.0, value=20.5, step=0.1)
 
 fitness_level_normalized = st.sidebar.slider("fitness_level_normalized", 0.0, 1.0, 0.45, 0.01)
@@ -78,16 +96,29 @@ reported_diabetes = st.sidebar.selectbox("reported_diabetes (0=no/ 1=yes)", [0, 
 reported_asthma = st.sidebar.selectbox("reported_asthma (0=no/ 1=yes)", [0, 1])
 
 daily_steps = st.sidebar.number_input("daily_steps", min_value=0, max_value=50000, value=8000, step=500)
-hydration_per_kg = st.sidebar.number_input("hydration_per_kg", min_value=0.0, max_value=1.0, value=0.025, step=0.001)
 
-bmi_category = st.sidebar.selectbox("bmi_category", BMI_CAT_OPTS)
+# ============================================================
+# ✅ Derived features (must match training)
+# ============================================================
+# hydration_per_kg was used in training → derive from liters/day and weight
+hydration_per_kg = float(hydration_level) / float(weight_kg)
 
-# ✅ Engineered features your preprocess expects
+# bmi_category was used in training → derive from bmi
+bmi_category = compute_bmi_category(float(bmi))
+
+# Engineered features your preprocess expects
 # Based on your training: sleep_gap = 8 - sleep_3day_avg
 sleep_gap = 8.0 - float(sleep_3day_avg)
 
 # Based on your training: rest_pressure = cumulative_sleep_deficit * days_since_rest
 rest_pressure = float(cumulative_sleep_deficit) * float(days_since_rest)
+
+# =========================
+# Main UI: show derived values
+# =========================
+st.subheader("Derived inputs (computed)")
+st.write(f"**hydration_per_kg:** {hydration_per_kg:.4f} L/kg  (from {hydration_level:.1f} L/day ÷ {weight_kg:.1f} kg)")
+st.write(f"**bmi_category:** {bmi_category}  (from BMI={float(bmi):.1f})")
 
 # ============================================================
 # Build raw input row with EXACT expected columns
@@ -129,17 +160,19 @@ X_raw = X_raw.reindex(columns=EXPECTED_FEATURES)
 st.subheader("Result")
 
 try:
-    # Your pipeline is a ColumnTransformer, so passing X_raw is correct
-    #X_processed = preprocess.transform(X_raw)
+    # Model is a Pipeline, so pass X_raw directly
     p_risk = float(model.predict_proba(X_raw)[0, 1])
 except Exception as e:
     st.error("Prediction failed (feature mismatch or datatype mismatch).")
     st.code(str(e))
-    st.info("Debug checklist:\n"
-            "1) X_raw columns must match preprocess.feature_names_in_\n"
-            "2) Categorical values must match training categories exactly (case-sensitive)\n"
-            "3) user_reported_condition must be 0/1 (not 'none')\n"
-            "4) previous_intensity must be one of High/Low/Medium/Unknown")
+    st.info(
+        "Debug checklist:\n"
+        "1) X_raw columns must match preprocess.feature_names_in_\n"
+        "2) Categorical values must match training categories exactly (case-sensitive)\n"
+        "3) user_reported_condition must be 0/1\n"
+        "4) previous_intensity must be one of High/Low/Medium/Unknown\n"
+        "5) activity_type/intensity/activity_environment must match your training categories"
+    )
     with st.expander("Show X_raw"):
         st.dataframe(X_raw, use_container_width=True)
     st.stop()
