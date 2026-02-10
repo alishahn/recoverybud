@@ -1,5 +1,5 @@
-streamlit>=1.32.0
-pandas>=2.1.0
-numpy>=1.26.0
-scikit-learn>=1.3.2
-joblib>=1.3.2
+import sklearn, pandas, numpy, joblib
+print("sklearn:", sklearn.__version__)
+print("pandas:", pandas.__version__)
+print("numpy:", numpy.__version__)
+print("joblib:", joblib.__version__)
