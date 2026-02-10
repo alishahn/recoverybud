@@ -66,7 +66,7 @@ recovery_score = st.sidebar.slider("recovery_score", 0.0, 100.0, 70.0, 1.0)
 previous_intensity = st.sidebar.selectbox("previous_intensity", PREV_INTENSITY_OPTS)
 
 activity_type = st.sidebar.selectbox("activity_type", ACTIVITY_TYPE_OPTS)
-intensity = st.sidebar.selectbox("intensity", INTENSITY_OPTS)
+intensity = st.sidebar.selectbox("intensity(today's planned activity)", INTENSITY_OPTS)
 activity_environment = st.sidebar.selectbox("activity_environment", ACTIVITY_ENV_OPTS)
 
 st.sidebar.subheader("Profile / health inputs")
