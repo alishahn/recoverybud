@@ -156,54 +156,7 @@ X_raw = pd.DataFrame([{
 
 # Ensure exact column ordering (important for some pipelines)
 X_raw = X_raw.reindex(columns=EXPECTED_FEATURES)
-# ------------------------------------------------------------
-# 🚫 SAFETY GATE: block prediction when inputs are basically empty
-# ------------------------------------------------------------
 
-# Define which fields count as "core health inputs"
-core_health_inputs = [
-    age,
-    height_cm,
-    weight_kg,
-    bmi,
-    resting_heart_rate,
-    blood_pressure_systolic,
-    blood_pressure_diastolic,
-    daily_steps,
-    hydration_level
-]
-
-# Count how many are "near zero / default"
-zero_like = sum([
-    age <= 12,
-    height_cm <= 130,
-    weight_kg <= 40,
-    bmi <= 12,
-    resting_heart_rate <= 35,
-    blood_pressure_systolic <= 90,
-    blood_pressure_diastolic <= 60,
-    daily_steps <= 1000,
-    hydration_level <= 1.2
-])
-
-NOT_ENOUGH_INFO = zero_like >= 5   # half or more look empty
-
-st.subheader("Result")
-
-if NOT_ENOUGH_INFO:
-    st.metric("Risk of underperformance", "0.0%")
-    st.progress(0.0)
-
-    st.warning(
-        "⚠️ Please complete more of your health profile "
-        "to receive a recommendation."
-    )
-
-    with st.expander("Show current inputs"):
-        st.dataframe(X_raw, use_container_width=True)
-
-    st.stop()   # ⛔️ IMPORTANT: prevents model from running
-    
 st.subheader("Result")
 
 try:
